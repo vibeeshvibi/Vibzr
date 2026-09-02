@@ -21,7 +21,7 @@ function Toggle({ value, onChange }: ToggleProps) {
 
 export function SettingsPage() {
   const { repeatMode, cycleRepeat, playlists, favorites } = usePlayerStore();
-  const { isInstallable, isInstalled, install } = usePWAInstall();
+    const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
   const [notifications, setNotifications] = useState(false);
   const [autoplay, setAutoplay] = useState(true);
   const [highQuality, setHighQuality] = useState(true);
@@ -69,7 +69,7 @@ export function SettingsPage() {
       items: [
         {
           label: 'Install Vibzr',
-          desc: isInstalled ? 'Already installed on this device' : 'Add to your home screen for offline access',
+          desc: isInstalled ? 'Already installed on home screen' : isIOS ? 'Tap Share button in Safari -> Add to Home Screen' : 'Add to your home screen for fast access',
           control: isInstalled ? (
             <span className="text-green-400 text-sm font-medium">Installed</span>
           ) : isInstallable ? (
@@ -79,6 +79,8 @@ export function SettingsPage() {
             >
               Install
             </button>
+          ) : isIOS ? (
+            <span className="text-brand-pink text-xs font-medium">Use Safari Share</span>
           ) : (
             <span className="text-white/30 text-xs">Not available</span>
           ),
