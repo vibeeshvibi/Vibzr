@@ -71,14 +71,14 @@ export function BottomNav() {
       className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.08] safe-bottom"
       style={{ background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(20px)' }}
     >
-      <div className="flex items-center justify-around py-2 px-2">
+      <div className="flex items-center justify-around py-1 px-2">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
             end={to === '/'}
             className={({ isActive }) =>
-              `nav-item py-1.5 px-4 rounded-xl ${isActive ? 'active' : ''}`
+              `nav-item py-1 px-3 rounded-xl ${isActive ? 'active' : ''}`
             }
           >
             {({ isActive }) => (

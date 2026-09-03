@@ -10,15 +10,16 @@ interface TrackCardProps {
   index?: number;
   queue?: Track[];
   showIndex?: boolean;
+  query?: string;
 }
 
-export function TrackCard({ track, index, queue, showIndex = false }: TrackCardProps) {
+export function TrackCard({ track, index, queue, showIndex = false, query }: TrackCardProps) {
   const { setTrack, addToQueue, currentTrack, isPlaying, toggleFavorite, isFavorite } = usePlayerStore();
   const isActive = currentTrack?.id === track.id;
   const favorite = isFavorite(track.id);
 
   const handlePlay = () => {
-    setTrack(track, queue || [track]);
+    setTrack(track, queue || [track], query);
   };
 
   const handleFavoriteClick = (e: React.MouseEvent) => {

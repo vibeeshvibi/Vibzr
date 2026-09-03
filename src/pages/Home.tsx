@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { RefreshCw, Music2 } from 'lucide-react';
+import { Music2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { getHomeSections, searchSongs } from '../api/jiosaavn';
 import type { Track } from '../types/music';
 import { usePlayerStore } from '../store/playerStore';
@@ -22,15 +23,24 @@ interface HomeSection {
   retro: Track[];
 }
 
-function HorizontalTrackRow({ title, tracks }: { title: string; tracks: Track[] }) {
+let homeSectionsCache: HomeSection | null = null;
+
+function HorizontalTrackRow({ title, query, tracks }: { title: string; query: string; tracks: Track[] }) {
   const { setTrack } = usePlayerStore();
+  const navigate = useNavigate();
+
   if (!tracks || tracks.length === 0) return null;
 
   return (
     <section className="mb-8">
       <div className="am-section-header">
         <h2>{title}</h2>
-        <span className="am-see-all">See All</span>
+        <button
+          onClick={() => navigate(`/search?q=${encodeURIComponent(query)}`)}
+          className="am-see-all bg-transparent border-0 cursor-pointer"
+        >
+          See All
+        </button>
       </div>
       <div className="flex overflow-x-auto no-scrollbar gap-4 pb-2">
         {tracks.slice(0, 12).map((track, i) => (
@@ -40,7 +50,7 @@ function HorizontalTrackRow({ title, tracks }: { title: string; tracks: Track[] 
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.03 }}
             whileTap={{ scale: 0.96 }}
-            onClick={() => setTrack(track, tracks)}
+            onClick={() => setTrack(track, tracks, query)}
             className="flex-shrink-0 w-36 cursor-pointer group"
           >
             <div className="relative mb-2">
@@ -71,31 +81,32 @@ function HorizontalTrackRow({ title, tracks }: { title: string; tracks: Track[] 
 }
 
 export function HomePage() {
-  const [sections, setSections] = useState<HomeSection | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [sections, setSections] = useState<HomeSection | null>(homeSectionsCache);
+  const [isLoading, setIsLoading] = useState(!homeSectionsCache);
   const [activeMood, setActiveMood] = useState<string | null>(null);
+  const [activeMoodQuery, setActiveMoodQuery] = useState<string | null>(null);
   const [moodTracks, setMoodTracks] = useState<Track[]>([]);
   const [isMoodLoading, setIsMoodLoading] = useState(false);
 
-  const loadHomeData = () => {
-    setIsLoading(true);
-    getHomeSections().then((data) => {
-      setSections(data);
-      setIsLoading(false);
-    });
-  };
-
   useEffect(() => {
-    loadHomeData();
+    if (!homeSectionsCache) {
+      getHomeSections().then((data) => {
+        homeSectionsCache = data;
+        setSections(data);
+        setIsLoading(false);
+      });
+    }
   }, []);
 
   const handleMoodClick = async (mood: typeof FEATURED_MOODS[0]) => {
     if (activeMood === mood.label) {
       setActiveMood(null);
+      setActiveMoodQuery(null);
       setMoodTracks([]);
       return;
     }
     setActiveMood(mood.label);
+    setActiveMoodQuery(mood.query);
     setIsMoodLoading(true);
     const results = await searchSongs(mood.query, 1, 15);
     setMoodTracks(results);
@@ -110,19 +121,10 @@ export function HomePage() {
       <motion.div
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8 flex items-center justify-between"
+        className="mb-8"
       >
-        <div>
-          <h1 className="text-3xl md:text-4xl font-black text-white mb-0.5">Vibzr Now</h1>
-          <p className="text-white/40 text-sm">Curated for vibeesh</p>
-        </div>
-        <button
-          onClick={loadHomeData}
-          className="p-2.5 rounded-full bg-brand-card border border-white/10 text-white/50 hover:text-white transition-colors"
-          title="Refresh"
-        >
-          <RefreshCw size={17} className={isLoading ? 'animate-spin text-brand-pink' : ''} />
-        </button>
+        <h1 className="text-3xl md:text-4xl font-black text-white mb-0.5">Vibzr Now</h1>
+        <p className="text-white/40 text-sm">Curated for vibeesh</p>
       </motion.div>
 
       {/* Mood chips */}
@@ -155,7 +157,7 @@ export function HomePage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-white">{activeMood}</h2>
             <button
-              onClick={() => { setActiveMood(null); setMoodTracks([]); }}
+              onClick={() => { setActiveMood(null); setActiveMoodQuery(null); setMoodTracks([]); }}
               className="text-white/40 hover:text-white text-xs transition-colors"
             >
               Clear
@@ -172,7 +174,7 @@ export function HomePage() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.03 }}
                   whileTap={{ scale: 0.96 }}
-                  onClick={() => setTrack(track, moodTracks)}
+                  onClick={() => setTrack(track, moodTracks, activeMoodQuery || undefined)}
                   className="flex-shrink-0 w-36 cursor-pointer group"
                 >
                   <div className="relative mb-2">
@@ -216,15 +218,15 @@ export function HomePage() {
         </div>
       ) : sections ? (
         <>
-          <HorizontalTrackRow title="Trending Now" tracks={sections.trending} />
-          <HorizontalTrackRow title="Thalapathy Vijay Hits" tracks={sections.thalapathy} />
-          <HorizontalTrackRow title="Anirudh Bangers" tracks={sections.anirudh} />
-          <HorizontalTrackRow title="Ilayaraja Classics" tracks={sections.retro} />
+          <HorizontalTrackRow title="Trending Now" query="tamil hits 2024" tracks={sections.trending} />
+          <HorizontalTrackRow title="Thalapathy Vijay Hits" query="thalapathy vijay" tracks={sections.thalapathy} />
+          <HorizontalTrackRow title="Anirudh Bangers" query="anirudh ravichander" tracks={sections.anirudh} />
+          <HorizontalTrackRow title="Ilayaraja Classics" query="ilayaraja classics" tracks={sections.retro} />
         </>
       ) : (
         <div className="text-center py-16 text-white/40">
           <Music2 size={48} className="mx-auto mb-4 opacity-30" />
-          <p>Failed to load music. Tap the refresh button above.</p>
+          <p>Failed to load music.</p>
         </div>
       )}
     </div>

@@ -16,7 +16,7 @@ export function MiniPlayer() {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom)+0.25rem)] md:bottom-0 left-0 right-0 z-40 px-2 pb-1 md:px-0 md:pb-0"
+        className="fixed bottom-[calc(3.1rem+env(safe-area-inset-bottom))] md:bottom-0 left-0 right-0 z-40 px-2 pb-1 md:px-0 md:pb-0"
       >
         <div
           className="relative border-t border-white/[0.08] md:rounded-none rounded-2xl overflow-hidden mx-auto max-w-full"

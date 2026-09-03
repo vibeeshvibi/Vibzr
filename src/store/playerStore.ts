@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { Track, RepeatMode, Playlist } from '../types/music';
 import { playAudioTrack, toggleAudioPlayback } from '../hooks/useAudio';
 import { saveFavoriteToIDB, removeFavoriteFromIDB, getAllFavoritesFromIDB } from '../utils/idbStorage';
+import { searchSongs } from '../api/jiosaavn';
 
 interface PlayerState {
   // Current track
@@ -13,10 +14,13 @@ interface PlayerState {
   volume: number;
   isMuted: boolean;
 
-  // Queue
+  // Queue & Pagination
   queue: Track[];
   queueIndex: number;
   originalQueue: Track[];
+  activeQuery: string | null;
+  currentPage: number;
+  isFetchingNextPage: boolean;
 
   // Modes
   isShuffled: boolean;
@@ -33,7 +37,8 @@ interface PlayerState {
   favorites: Track[];
 
   // Actions
-  setTrack: (track: Track, queue?: Track[]) => void;
+  setTrack: (track: Track, queue?: Track[], query?: string) => void;
+  fetchNextPage: () => Promise<boolean>;
   togglePlay: () => void;
   setPlaying: (playing: boolean) => void;
   setCurrentTime: (time: number) => void;
@@ -75,6 +80,9 @@ export const usePlayerStore = create<PlayerState>()(
       queue: [],
       queueIndex: -1,
       originalQueue: [],
+      activeQuery: null,
+      currentPage: 1,
+      isFetchingNextPage: false,
       isShuffled: false,
       repeatMode: 'none',
       isFullScreenOpen: false,
@@ -82,10 +90,11 @@ export const usePlayerStore = create<PlayerState>()(
       playlists: [],
       favorites: [],
 
-      setTrack: (track, queue) => {
+      setTrack: (track, queue, query) => {
         const newQueue = queue || [track];
         const idx = newQueue.findIndex((t) => t.id === track.id);
-        
+        const inferredQuery = query || (track.artist ? `${track.artist} tamil` : 'tamil hits 2024');
+
         // Trigger play synchronously inside click callstack to bypass browser autoplay block
         playAudioTrack(track);
 
@@ -97,7 +106,40 @@ export const usePlayerStore = create<PlayerState>()(
           currentTime: 0,
           isPlaying: true,
           isLoading: false,
+          activeQuery: inferredQuery,
+          currentPage: 1,
         });
+      },
+
+      fetchNextPage: async () => {
+        const { activeQuery, currentPage, isFetchingNextPage, queue } = get();
+        if (isFetchingNextPage) return false;
+
+        const queryToFetch = activeQuery || 'tamil hits 2024';
+        const nextPage = (currentPage || 1) + 1;
+
+        set({ isFetchingNextPage: true });
+
+        try {
+          const newTracks = await searchSongs(queryToFetch, nextPage, 20);
+          const existingIds = new Set(queue.map((t) => t.id));
+          const uniqueNew = newTracks.filter((t) => !existingIds.has(t.id));
+
+          if (uniqueNew.length > 0) {
+            set((s) => ({
+              queue: [...s.queue, ...uniqueNew],
+              originalQueue: [...s.originalQueue, ...uniqueNew],
+              currentPage: nextPage,
+              isFetchingNextPage: false,
+            }));
+            return true;
+          }
+        } catch (e) {
+          console.warn('Auto fetch next page failed:', e);
+        }
+
+        set({ isFetchingNextPage: false });
+        return false;
       },
 
       togglePlay: () => {
@@ -116,28 +158,48 @@ export const usePlayerStore = create<PlayerState>()(
 
       toggleMute: () => set((s) => ({ isMuted: !s.isMuted })),
 
-      nextTrack: () => {
+      nextTrack: async () => {
         const { queue, queueIndex, repeatMode } = get();
         if (!queue.length) return;
+
         if (repeatMode === 'one') {
           set({ currentTime: 0, isPlaying: true });
           const cur = get().currentTrack;
           if (cur) playAudioTrack(cur);
           return;
         }
+
         const nextIdx = queueIndex + 1;
+
+        // If at or beyond current queue length, fetch next page automatically
         if (nextIdx >= queue.length) {
+          set({ isLoading: true });
+          const fetched = await get().fetchNextPage();
+          const updatedQueue = get().queue;
+
+          if (fetched && nextIdx < updatedQueue.length) {
+            const next = updatedQueue[nextIdx];
+            playAudioTrack(next);
+            set({ queueIndex: nextIdx, currentTrack: next, currentTime: 0, isPlaying: true, isLoading: false });
+            return;
+          }
+
           if (repeatMode === 'all') {
-            const first = queue[0];
-            playAudioTrack(first);
-            set({ queueIndex: 0, currentTrack: first, currentTime: 0, isPlaying: true });
+            const first = updatedQueue[0];
+            if (first) playAudioTrack(first);
+            set({ queueIndex: 0, currentTrack: first, currentTime: 0, isPlaying: true, isLoading: false });
           } else {
-            set({ isPlaying: false });
+            set({ isPlaying: false, isLoading: false });
           }
         } else {
           const next = queue[nextIdx];
           playAudioTrack(next);
           set({ queueIndex: nextIdx, currentTrack: next, currentTime: 0, isPlaying: true });
+
+          // Background pre-fetch when 2 tracks away from queue end
+          if (nextIdx >= queue.length - 2) {
+            get().fetchNextPage();
+          }
         }
       },
 
@@ -186,7 +248,7 @@ export const usePlayerStore = create<PlayerState>()(
           return { queue: newQueue };
         }),
 
-      clearQueue: () => set({ queue: [], originalQueue: [], queueIndex: -1 }),
+      clearQueue: () => set({ queue: [], originalQueue: [], queueIndex: -1, activeQuery: null, currentPage: 1 }),
 
       setFullScreen: (open) => set({ isFullScreenOpen: open }),
       setLoading: (loading) => set({ isLoading: loading }),

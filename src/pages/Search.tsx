@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Music2, Disc3, Mic2 } from 'lucide-react';
 import { searchAll } from '../api/jiosaavn';
@@ -8,6 +8,8 @@ import { AlbumCard } from '../components/music/AlbumCard';
 import { ArtistCard } from '../components/music/ArtistCard';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { useSearch } from '../hooks/useSearch';
+
+import { useSearchParams } from 'react-router-dom';
 
 type Tab = 'songs' | 'albums' | 'artists';
 
@@ -26,9 +28,17 @@ const BROWSE_CATEGORIES = [
 ];
 
 export function SearchPage() {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>('songs');
   const searchFn = useCallback((q: string) => searchAll(q), []);
   const { query, results, isLoading, search, clear } = useSearch<SearchResults>(searchFn, 400);
+
+  useEffect(() => {
+    const qParam = searchParams.get('q');
+    if (qParam) {
+      search(qParam);
+    }
+  }, [searchParams]);
 
   const tabs: { id: Tab; label: string; icon: any }[] = [
     { id: 'songs', label: 'Songs', icon: Music2 },
@@ -132,7 +142,7 @@ export function SearchPage() {
                     <p className="text-white/40 text-center py-8">No songs found</p>
                   ) : (
                     results.songs.map((track, i) => (
-                      <TrackCard key={track.id} track={track} index={i} queue={results.songs} showIndex />
+                      <TrackCard key={track.id} track={track} index={i} queue={results.songs} showIndex query={query} />
                     ))
                   )}
                 </div>
