@@ -68,7 +68,7 @@ export function Sidebar() {
 export function BottomNav() {
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-white/[0.08] safe-bottom"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.08] safe-bottom"
       style={{ background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(20px)' }}
     >
       <div className="flex items-center justify-around py-2 px-2">

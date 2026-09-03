@@ -18,7 +18,7 @@ export function InstallBanner() {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: -80, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-sm"
+        className="fixed top-[calc(env(safe-area-inset-top)+0.75rem)] left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-sm"
       >
         <div className="bg-brand-card border border-white/10 rounded-xl p-3 shadow-2xl backdrop-blur-xl">
           <div className="flex items-center gap-3">

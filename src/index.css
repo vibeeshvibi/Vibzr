@@ -161,6 +161,10 @@
     box-shadow: 0 0 20px rgba(252, 60, 68, 0.25);
   }
 
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
   }

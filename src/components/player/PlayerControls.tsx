@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Repeat1, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Repeat1 } from 'lucide-react';
 import { usePlayerStore } from '../../store/playerStore';
 
 interface PlayerControlsProps {
@@ -11,16 +11,12 @@ export function PlayerControls({ size = 'full' }: PlayerControlsProps) {
     isPlaying,
     isShuffled,
     repeatMode,
-    volume,
-    isMuted,
     isLoading,
     togglePlay,
     nextTrack,
     prevTrack,
     toggleShuffle,
     cycleRepeat,
-    setVolume,
-    toggleMute,
   } = usePlayerStore();
 
   const btnSize = size === 'mini' ? 18 : 22;
@@ -88,30 +84,6 @@ export function PlayerControls({ size = 'full' }: PlayerControlsProps) {
         <RepeatIcon size={btnSize} />
       </motion.button>
 
-      {/* Volume (full size only) */}
-      {size === 'full' && (
-        <div className="flex items-center gap-2 ml-2">
-          <motion.button whileTap={{ scale: 0.9 }} onClick={toggleMute}>
-            {isMuted || volume === 0 ? (
-              <VolumeX size={18} className="text-white/50 hover:text-white transition-colors" />
-            ) : (
-              <Volume2 size={18} className="text-white/70 hover:text-white transition-colors" />
-            )}
-          </motion.button>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={isMuted ? 0 : volume}
-            onChange={(e) => setVolume(Number(e.target.value))}
-            className="w-24"
-            style={{
-              background: `linear-gradient(to right, #FC3C44 ${(isMuted ? 0 : volume) * 100}%, rgba(255,255,255,0.2) ${(isMuted ? 0 : volume) * 100}%)`,
-            }}
-          />
-        </div>
-      )}
     </div>
   );
 }

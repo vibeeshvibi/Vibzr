@@ -55,7 +55,7 @@ export default function App() {
         <Sidebar />
 
         {/* Main content area */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative pt-[env(safe-area-inset-top)]">
           {/* Decorative background orbs */}
           <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
             <div className="absolute -top-40 -right-40 w-96 h-96 bg-brand-pink/10 rounded-full blur-3xl" />
