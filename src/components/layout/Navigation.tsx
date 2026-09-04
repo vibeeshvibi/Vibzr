@@ -15,9 +15,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="px-6 py-7 border-b border-white/[0.08]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-brand-pink flex items-center justify-center">
-            <span className="text-white font-black text-base">V</span>
-          </div>
+          <img src="/pwa-192x192.png" alt="Vibzr" className="w-9 h-9 rounded-xl object-cover border border-white/10" />
           <div>
             <h1 className="font-bold text-white text-base leading-tight">Vibzr</h1>
             <p className="text-white/40 text-xs">Music</p>

@@ -141,9 +141,7 @@ export function SettingsPage() {
             <p className="text-white font-semibold">Vibzr</p>
             <p className="text-white/40 text-xs mt-0.5">Version 1.0.0</p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-brand-pink flex items-center justify-center">
-            <span className="text-white font-black text-base">V</span>
-          </div>
+          <img src="/pwa-192x192.png" alt="Vibzr" className="w-10 h-10 rounded-xl object-cover border border-white/10" />
         </div>
         <div className="mt-4 pt-4 border-t border-white/[0.08]">
           <p className="text-white/30 text-xs leading-relaxed">

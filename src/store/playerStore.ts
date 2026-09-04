@@ -95,7 +95,7 @@ export const usePlayerStore = create<PlayerState>()(
         const idx = newQueue.findIndex((t) => t.id === track.id);
         const inferredQuery = query || (track.artist ? `${track.artist} tamil` : 'tamil hits 2024');
 
-        // Trigger play synchronously inside click callstack to bypass browser autoplay block
+        // Play synchronously inside user click
         playAudioTrack(track);
 
         set({
@@ -109,6 +109,12 @@ export const usePlayerStore = create<PlayerState>()(
           activeQuery: inferredQuery,
           currentPage: 1,
         });
+
+        // Pre-fetch next page early in the background while track 1 is actively playing
+        // This ensures the queue is already filled before reaching the end of the batch
+        if (newQueue.length <= 15) {
+          get().fetchNextPage();
+        }
       },
 
       fetchNextPage: async () => {
@@ -158,7 +164,8 @@ export const usePlayerStore = create<PlayerState>()(
 
       toggleMute: () => set((s) => ({ isMuted: !s.isMuted })),
 
-      nextTrack: async () => {
+      // Synchronous track transition to guarantee zero audio gap on iOS lock screen
+      nextTrack: () => {
         const { queue, queueIndex, repeatMode } = get();
         if (!queue.length) return;
 
@@ -171,34 +178,24 @@ export const usePlayerStore = create<PlayerState>()(
 
         const nextIdx = queueIndex + 1;
 
-        // If at or beyond current queue length, fetch next page automatically
-        if (nextIdx >= queue.length) {
-          set({ isLoading: true });
-          const fetched = await get().fetchNextPage();
-          const updatedQueue = get().queue;
+        if (nextIdx < queue.length) {
+          const next = queue[nextIdx];
+          // Immediately initiate audio playback within the synchronous event tick
+          playAudioTrack(next);
+          set({ queueIndex: nextIdx, currentTrack: next, currentTime: 0, isPlaying: true, isLoading: false });
 
-          if (fetched && nextIdx < updatedQueue.length) {
-            const next = updatedQueue[nextIdx];
-            playAudioTrack(next);
-            set({ queueIndex: nextIdx, currentTrack: next, currentTime: 0, isPlaying: true, isLoading: false });
-            return;
+          // Proactively fetch more songs while this track is playing, well before the queue runs dry
+          if (nextIdx >= queue.length - 4) {
+            get().fetchNextPage();
           }
-
+        } else {
+          // Reached end of queue
           if (repeatMode === 'all') {
-            const first = updatedQueue[0];
+            const first = queue[0];
             if (first) playAudioTrack(first);
             set({ queueIndex: 0, currentTrack: first, currentTime: 0, isPlaying: true, isLoading: false });
           } else {
             set({ isPlaying: false, isLoading: false });
-          }
-        } else {
-          const next = queue[nextIdx];
-          playAudioTrack(next);
-          set({ queueIndex: nextIdx, currentTrack: next, currentTime: 0, isPlaying: true });
-
-          // Background pre-fetch when 2 tracks away from queue end
-          if (nextIdx >= queue.length - 2) {
-            get().fetchNextPage();
           }
         }
       },

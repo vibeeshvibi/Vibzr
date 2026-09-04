@@ -22,9 +22,7 @@ export function InstallBanner() {
       >
         <div className="bg-brand-card border border-white/10 rounded-xl p-3 shadow-2xl backdrop-blur-xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-brand-pink rounded-xl flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-black text-base">V</span>
-            </div>
+            <img src="/pwa-192x192.png" alt="Vibzr" className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-white/10" />
             <div className="flex-1 min-w-0">
               <p className="text-white font-semibold text-sm">Install Vibzr App</p>
               <p className="text-white/50 text-xs truncate">
