@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { Track, RepeatMode, Playlist } from '../types/music';
 import { playAudioTrack, toggleAudioPlayback } from '../hooks/useAudio';
 import { saveFavoriteToIDB, removeFavoriteFromIDB, getAllFavoritesFromIDB } from '../utils/idbStorage';
-import { searchSongs } from '../api/jiosaavn';
+import { searchSongs, getAutoplayRecommendations } from '../api/jiosaavn';
 
 interface PlayerState {
   // Current track
@@ -39,6 +39,7 @@ interface PlayerState {
   // Actions
   setTrack: (track: Track, queue?: Track[], query?: string) => void;
   fetchNextPage: () => Promise<boolean>;
+  populateAutoplayQueue: (seedTrack: Track) => Promise<void>;
   togglePlay: () => void;
   setPlaying: (playing: boolean) => void;
   setCurrentTime: (time: number) => void;
@@ -91,8 +92,9 @@ export const usePlayerStore = create<PlayerState>()(
       favorites: [],
 
       setTrack: (track, queue, query) => {
-        const newQueue = queue || [track];
-        const idx = newQueue.findIndex((t) => t.id === track.id);
+        const initialQueue = queue && queue.length > 0 ? [...queue] : [track];
+        const idx = initialQueue.findIndex((t) => t.id === track.id);
+        const currentIdx = idx >= 0 ? idx : 0;
         const inferredQuery = query || (track.artist ? `${track.artist} tamil` : 'tamil hits 2024');
 
         // Play synchronously inside user click
@@ -100,9 +102,9 @@ export const usePlayerStore = create<PlayerState>()(
 
         set({
           currentTrack: track,
-          queue: newQueue,
-          originalQueue: newQueue,
-          queueIndex: idx >= 0 ? idx : 0,
+          queue: initialQueue,
+          originalQueue: initialQueue,
+          queueIndex: currentIdx,
           currentTime: 0,
           isPlaying: true,
           isLoading: false,
@@ -110,11 +112,40 @@ export const usePlayerStore = create<PlayerState>()(
           currentPage: 1,
         });
 
-        // Pre-fetch next page early in the background while track 1 is actively playing
-        // This ensures the queue is already filled before reaching the end of the batch
-        if (newQueue.length <= 15) {
-          get().fetchNextPage();
+        // Spotify Autoplay Algorithm:
+        // If there are fewer than 8 upcoming songs in the queue (e.g., searched a single song,
+        // or clicked the last song in search results), immediately generate similar recommendations
+        // in the background while track 1 is playing, ensuring the queue is NEVER empty on lock screen!
+        const upcomingCount = initialQueue.length - (currentIdx + 1);
+        if (upcomingCount < 8) {
+          get().populateAutoplayQueue(track);
         }
+      },
+
+      // Generates Spotify-style infinite radio recommendations based on seed track
+      populateAutoplayQueue: async (seedTrack: Track) => {
+        if (get().isFetchingNextPage) return;
+        set({ isFetchingNextPage: true });
+
+        try {
+          const recs = await getAutoplayRecommendations(seedTrack);
+          const currentQueue = get().queue;
+          const existingIds = new Set(currentQueue.map((t) => t.id));
+          const uniqueRecs = recs.filter((t) => !existingIds.has(t.id));
+
+          if (uniqueRecs.length > 0) {
+            set((s) => ({
+              queue: [...s.queue, ...uniqueRecs],
+              originalQueue: [...s.originalQueue, ...uniqueRecs],
+              isFetchingNextPage: false,
+            }));
+            return;
+          }
+        } catch (e) {
+          console.warn('Autoplay recommendation error:', e);
+        }
+
+        set({ isFetchingNextPage: false });
       },
 
       fetchNextPage: async () => {
@@ -164,7 +195,7 @@ export const usePlayerStore = create<PlayerState>()(
 
       toggleMute: () => set((s) => ({ isMuted: !s.isMuted })),
 
-      // Synchronous track transition to guarantee zero audio gap on iOS lock screen
+      // 100% synchronous track transition to guarantee zero audio gaps on iOS lock screen
       nextTrack: () => {
         const { queue, queueIndex, repeatMode } = get();
         if (!queue.length) return;
@@ -180,22 +211,21 @@ export const usePlayerStore = create<PlayerState>()(
 
         if (nextIdx < queue.length) {
           const next = queue[nextIdx];
-          // Immediately initiate audio playback within the synchronous event tick
+          // Immediately trigger audio on current hardware session
           playAudioTrack(next);
           set({ queueIndex: nextIdx, currentTrack: next, currentTime: 0, isPlaying: true, isLoading: false });
 
-          // Proactively fetch more songs while this track is playing, well before the queue runs dry
-          if (nextIdx >= queue.length - 4) {
-            get().fetchNextPage();
+          // Spotify-style endless buffer: when fewer than 6 upcoming songs remain, populate more
+          const remainingAhead = queue.length - (nextIdx + 1);
+          if (remainingAhead < 6) {
+            get().populateAutoplayQueue(next);
           }
         } else {
-          // Reached end of queue
-          if (repeatMode === 'all') {
-            const first = queue[0];
-            if (first) playAudioTrack(first);
+          // If queue ever runs out, smoothly loop back to track 1
+          const first = queue[0];
+          if (first) {
+            playAudioTrack(first);
             set({ queueIndex: 0, currentTrack: first, currentTime: 0, isPlaying: true, isLoading: false });
-          } else {
-            set({ isPlaying: false, isLoading: false });
           }
         }
       },

@@ -340,3 +340,29 @@ export async function getHomeSections(): Promise<{
     retro: retro.length ? retro : FULL_TAMIL_CATALOG.slice(10, 12),
   };
 }
+
+// Spotify-style song radio / autoplay recommendation algorithm
+export async function getAutoplayRecommendations(track: Track): Promise<Track[]> {
+  const mainArtist = track.artist ? track.artist.split(',')[0].trim() : '';
+  const queries = [
+    mainArtist ? `${mainArtist} tamil hits` : '',
+    track.album && track.album !== 'Tamil Movie' ? `${track.album} tamil` : '',
+    'tamil hits 2024',
+    'tamil trending songs',
+  ].filter(Boolean);
+
+  for (const q of queries) {
+    try {
+      const songs = await searchSongs(q, 1, 20);
+      const filtered = songs.filter((s) => s.id !== track.id && s.url);
+      if (filtered.length >= 5) {
+        return filtered;
+      }
+    } catch {
+      // try next fallback query
+    }
+  }
+
+  return FULL_TAMIL_CATALOG.filter((s) => s.id !== track.id);
+}
+
